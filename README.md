@@ -23,9 +23,13 @@ scripts/
   update.py                   Fetch the latest data AND regenerate everything (one command)
   fetch_latest_data.py         Just download the latest workbook into data/
   refresh_outputs.py           Just regenerate every chart/table from what's already in data/
+  build_site.py                Build the static public report from outputs/
+web/
+  styles.css                   Report styling copied into the generated site
 outputs/
   figures/                    Saved PNG charts
   tables/                     Saved CSV summary tables
+site/                         Generated static site (ignored by Git)
 ```
 
 ## Setup
@@ -72,7 +76,44 @@ python scripts/refresh_outputs.py --weeks 4 12 52    # customise the trailing wi
 
 `refresh_outputs.py` and `update.py` load every workbook in `data/`, build the summary
 tables, and (re)write every chart to `outputs/figures/` and every table to
-`outputs/tables/`. `fetch_latest_data.py` only downloads the workbook.
+`outputs/tables/`, including `vote_retention.csv`. `fetch_latest_data.py` only downloads
+the workbook.
+
+## Public report and weekly publishing
+
+The static report is built from the saved charts and CSV tables:
+
+```bash
+python scripts/build_site.py
+```
+
+This writes `site/index.html`, the chart assets, and CSV downloads under
+`site/downloads/`. The generated `site/` directory is ignored by Git. Open the site
+locally with `python -m http.server --directory site` if you want to preview it.
+
+`.github/workflows/publish-report.yml` checks YouGov each morning at 08:17 UK time,
+also runs when changes are pushed to `main`, and supports a manual run from the GitHub
+Actions tab. It fetches the workbook in the temporary runner, runs `scripts/update.py`,
+builds the report, and deploys the static artifact to GitHub Pages. The workbook and
+archive are not committed or included in the site. A failed download or build stops the
+workflow before deployment, leaving the last successful report in place.
+
+### One-time GitHub Pages and domain setup
+
+1. In the repository's **Settings → Pages**, select **GitHub Actions** as the build and
+   deployment source.
+2. Verify `electionmodels.com` under the account's GitHub Pages domain settings, then
+   set `electionmodels.com` as the repository's custom domain.
+3. In the domain's DNS control panel, point the apex (`@`) to GitHub Pages with the four
+   A records listed in [GitHub's custom-domain instructions](https://docs.github.com/en/pages/configuring-a-custom-domain-for-your-github-pages-site/managing-your-custom-domain-for-your-github-pages-site).
+   Add a `www` CNAME pointing to `data-john.github.io` so GitHub Pages redirects it to
+   the apex domain.
+4. After DNS has propagated and GitHub has provisioned its certificate, enable
+   **Enforce HTTPS** in the Pages settings.
+
+The workflow publishes to the repository's default GitHub Pages address until the
+custom domain is configured. GitHub Pages may take some time to verify DNS and make
+HTTPS available.
 
 ## Where the data comes from
 
