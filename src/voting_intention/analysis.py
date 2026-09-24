@@ -222,6 +222,58 @@ def headline_table(
     return out.loc[order]
 
 
+def vote_retention_table(
+    summary_df: pd.DataFrame, trailing_weeks: int | list[int] = DEFAULT_TRAILING_WEEKS
+) -> pd.DataFrame:
+    """Return the share of each major party's previous voters who still
+    support that party, with changes over each requested window.
+
+    The result uses one row per party and is indexed by party, matching the
+    CSV format used by the analysis notebook.
+    """
+    from . import config
+
+    weeks_list = _as_week_list(trailing_weeks)
+    _require_change_cols(summary_df, weeks_list)
+
+    past_vote_labels = {
+        "Con": "Conservative",
+        "Lab": "Labour",
+        "Lib Dem": "Liberal Democrat",
+        "Reform UK": "Reform UK",
+    }
+    past_vote = summary_df[summary_df["category"] == "Past Vote"]
+    rows = []
+    for party, group in past_vote_labels.items():
+        matching = past_vote[(past_vote["party"] == party) & (past_vote["group"] == group)]
+        if matching.empty:
+            continue
+        row = matching.iloc[-1]
+        retention = {
+            "party": party,
+            "latest_date": row["latest_date"],
+            "retention_%": round(float(row["latest"]) * 100, 1),
+            "n_polls": int(row["n_polls"]),
+        }
+        for weeks in weeks_list:
+            retention[f"{weeks}w_pp"] = (
+                round(float(row[f"change_{weeks}w"]) * 100, 1)
+                if pd.notna(row[f"change_{weeks}w"])
+                else np.nan
+            )
+        rows.append(retention)
+
+    columns = ["party", "latest_date", "retention_%"]
+    columns.extend(f"{weeks}w_pp" for weeks in weeks_list)
+    columns.append("n_polls")
+    if not rows:
+        return pd.DataFrame(columns=columns).set_index("party")
+
+    out = pd.DataFrame(rows).set_index("party")
+    order = [party for party in config.PARTY_ORDER if party in out.index]
+    return out.loc[order, [column for column in columns if column != "party"]]
+
+
 def momentum_table(
     summary_df: pd.DataFrame,
     category: str,
