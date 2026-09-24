@@ -87,9 +87,11 @@ The static report is built from the saved charts and CSV tables:
 python scripts/build_site.py
 ```
 
-This writes `site/index.html`, the chart assets, and CSV downloads under
-`site/downloads/`. The generated `site/` directory is ignored by Git. Open the site
-locally with `python -m http.server --directory site` if you want to preview it.
+This writes the report at both the site root and `site/yougov/`, with chart assets
+and CSV downloads alongside each copy. That makes the report available at
+`electionmodels.com/yougov/` while keeping the root report in place. The generated
+`site/` directory is ignored by Git. Open it locally with
+`python -m http.server --directory site` if you want to preview it.
 
 `.github/workflows/publish-report.yml` checks YouGov each morning at 08:17 UK time,
 also runs when changes are pushed to `main`, and supports a manual run from the GitHub
