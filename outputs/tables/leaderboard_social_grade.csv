@@ -1,0 +1,9 @@
+party,strongest,strongest_%,weakest,weakest_%,most_gaining_4w,gaining_4w_pp,most_losing_4w,losing_4w_pp,most_gaining_12w,gaining_12w_pp,most_losing_12w,losing_12w_pp,most_gaining_52w,gaining_52w_pp,most_losing_52w,losing_52w_pp
+Con,ABC1,21.0,C2DE,18.0,ABC1,0.0,C2DE,-3.0,C2DE,2.0,ABC1,1.0,ABC1,2.0,ABC1,2.0
+Lab,ABC1,26.0,C2DE,17.0,ABC1,1.0,C2DE,-2.0,ABC1,5.0,C2DE,4.0,ABC1,1.0,ABC1,1.0
+Lib Dem,ABC1,14.0,C2DE,11.0,C2DE,3.0,ABC1,1.0,C2DE,1.0,ABC1,-1.0,ABC1,-2.0,C2DE,-2.0
+Reform UK,C2DE,31.0,ABC1,18.0,C2DE,4.0,ABC1,-1.0,C2DE,-1.0,ABC1,-6.0,ABC1,-3.0,C2DE,-7.0
+Green,ABC1,14.0,C2DE,12.0,ABC1,1.0,C2DE,-1.0,ABC1,0.0,C2DE,-5.0,ABC1,3.0,C2DE,3.0
+SNP,C2DE,3.0,ABC1,2.0,C2DE,1.0,ABC1,-1.0,ABC1,0.0,C2DE,-1.0,ABC1,-1.0,C2DE,-1.0
+Plaid Cymru,ABC1,1.0,ABC1,1.0,ABC1,0.0,ABC1,0.0,ABC1,0.0,C2DE,-1.0,ABC1,0.0,ABC1,0.0
+Other,C2DE,6.0,ABC1,4.0,ABC1,-1.0,C2DE,-3.0,ABC1,1.0,C2DE,0.0,C2DE,2.0,ABC1,-1.0
