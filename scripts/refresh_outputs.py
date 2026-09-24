@@ -57,6 +57,9 @@ def run(trailing_weeks: list[int] = (4, 12, 52)) -> None:
     )
     headline_demo.to_csv(table_dir / "headline_demographics_only.csv")
 
+    retention = analysis.vote_retention_table(summary, trailing_weeks=trailing_weeks)
+    retention.to_csv(table_dir / "vote_retention.csv")
+
     plotting.plot_overall_trend(df, save_path=str(fig_dir / "overall_trend.png"))
     plotting.plot_latest_heatmap(summary, save_path=str(fig_dir / "latest_heatmap.png"))
     plotting.plot_change_heatmap_grid(
@@ -97,7 +100,8 @@ def main():
     if args.fetch:
         from voting_intention import downloader
 
-        downloader.download_latest(data_dir=str(REPO_ROOT / "data"))
+        if downloader.download_latest(data_dir=str(REPO_ROOT / "data")) is None:
+            raise SystemExit("Could not fetch the latest YouGov workbook; outputs were not refreshed.")
 
     run(trailing_weeks=args.weeks)
 
