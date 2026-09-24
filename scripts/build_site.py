@@ -416,9 +416,15 @@ def build_site() -> Path:
   </footer>
 </body>
 </html>
-"""
+    """
     (SITE_DIR / "index.html").write_text(report, encoding="utf-8")
-    print(f"Built static report at {SITE_DIR}")
+    yougov_dir = SITE_DIR / "yougov"
+    yougov_dir.mkdir()
+    shutil.copytree(SITE_DIR / "assets", yougov_dir / "assets")
+    shutil.copytree(SITE_DIR / "downloads", yougov_dir / "downloads")
+    shutil.copy2(SITE_DIR / "index.html", yougov_dir / "index.html")
+
+    print(f"Built static report at {SITE_DIR} and {yougov_dir}")
     print(f"Poll data through {_format_date(latest_date)}; checked {checked_label}.")
     print(f"Copied {len(figure_files)} figures and {len(csv_files)} CSV tables.")
     return SITE_DIR
