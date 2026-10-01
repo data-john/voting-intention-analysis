@@ -4,6 +4,8 @@ on:
   schedule:
     - cron: "17 2,8,14,20 * * *"
       timezone: Europe/London
+    - cron: "17 11,17 * * 1"
+      timezone: Europe/London
   workflow_dispatch:
   push:
     branches:
