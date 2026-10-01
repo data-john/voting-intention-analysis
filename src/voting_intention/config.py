@@ -19,6 +19,9 @@ import re
 # Row labels as they appear in the workbook, in a sensible display order.
 PARTY_ORDER = ["Con", "Lab", "Lib Dem", "Reform UK", "Green", "SNP", "Plaid Cymru", "Other"]
 
+# The regional reporting scope for parties that contest only one UK nation.
+HOME_REGION_BY_PARTY = {"SNP": "Scotland", "Plaid Cymru": "Wales"}
+
 # Parties usually worth putting on the same "headline" charts (small multiples
 # get unreadable with all 8). Plaid Cymru and Other are still fully analysed
 # in the summary tables -- they're just left off the default grid plots.

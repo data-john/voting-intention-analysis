@@ -51,7 +51,9 @@ def run(trailing_weeks: list[int] = (4, 12, 52)) -> None:
     print(loader.coverage_report(df))
     print(f"Trailing windows: {trailing_weeks} weeks")
 
-    summary = analysis.build_summary(df, trailing_weeks=trailing_weeks)
+    summary = analysis.filter_reporting_rows(
+        analysis.build_summary(df, trailing_weeks=trailing_weeks)
+    )
     summary.to_csv(table_dir / "summary_all_groups.csv", index=False)
 
     headline_all = analysis.headline_table(summary, trailing_weeks=trailing_weeks)

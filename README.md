@@ -182,6 +182,10 @@ For charts, `plotting.plot_change_heatmap()` takes a single window;
 window (each with its own colour scale, since a 52-week change is typically
 much bigger in magnitude than a 4-week one).
 
+Report outputs pass summaries through `analysis.filter_reporting_rows()`: SNP
+regional figures include Scotland only, and Plaid Cymru regional figures include
+Wales only. Their other breakdowns remain UK-wide.
+
 Reduce further to one row per party: its single strongest/weakest group and
 fastest gaining/losing group(s), across all breakdowns (or restricted to
 genuine demographics via `exclude_categories=("Overall", "Past Vote")`,

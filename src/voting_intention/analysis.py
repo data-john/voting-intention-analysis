@@ -36,6 +36,23 @@ def _change_col(weeks: int) -> str:
     return f"change_{weeks}w"
 
 
+def filter_reporting_rows(data: pd.DataFrame) -> pd.DataFrame:
+    """Remove non-home-nation region rows for SNP and Plaid Cymru reporting.
+
+    Other categories remain national breakdowns, and the raw poll data and
+    ``build_summary`` output are left unchanged for general analysis.
+    """
+    from . import config
+
+    home_regions = data["party"].map(config.HOME_REGION_BY_PARTY)
+    outside_home_region = (
+        data["category"].eq("Region")
+        & home_regions.notna()
+        & data["group"].ne(home_regions)
+    )
+    return data.loc[~outside_home_region].copy()
+
+
 def _value_weeks_ago(series: pd.DataFrame, weeks: int, max_slack_ratio: float = 1.5) -> float | None:
     """Value at approximately `weeks` before the series' latest date, using
     the most recent poll at or before that target date. Returns None if no
@@ -139,7 +156,7 @@ def category_leaderboard(
     weeks_list = _as_week_list(trailing_weeks)
     _require_change_cols(summary_df, weeks_list)
 
-    d = summary_df[summary_df["category"] == category]
+    d = filter_reporting_rows(summary_df[summary_df["category"] == category])
     rows = []
     for party, sub in d.groupby("party"):
         sub_latest = sub.dropna(subset=["latest"])
@@ -187,7 +204,7 @@ def headline_table(
     weeks_list = _as_week_list(trailing_weeks)
     _require_change_cols(summary_df, weeks_list)
 
-    d = summary_df[~summary_df["category"].isin(exclude_categories)]
+    d = filter_reporting_rows(summary_df[~summary_df["category"].isin(exclude_categories)])
     rows = []
     for party, sub in d.groupby("party"):
         sub_latest = sub.dropna(subset=["latest"])
@@ -289,7 +306,9 @@ def momentum_table(
     weeks_list = _as_week_list(trailing_weeks)
     _require_change_cols(summary_df, weeks_list)
 
-    d = summary_df[(summary_df["category"] == category) & (summary_df["party"] == party)].copy()
+    d = filter_reporting_rows(
+        summary_df[(summary_df["category"] == category) & (summary_df["party"] == party)]
+    )
     cols = [_change_col(w) for w in weeks_list]
     out = d.set_index("group")[["latest", *cols]] * 100
     out = out.rename(columns={"latest": "latest_%", **{c: f"{c}_pp" for c in cols}})

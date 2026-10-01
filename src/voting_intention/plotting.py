@@ -14,6 +14,7 @@ import pandas as pd
 import seaborn as sns
 
 from . import config
+from .analysis import filter_reporting_rows
 
 _STYLED = False
 
@@ -59,6 +60,8 @@ def plot_group_lines(
     _apply_style()
     parties = parties or config.PARTY_ORDER
     sub = df[(df["category"] == category) & (df["group"] == group) & (df["party"].isin(parties))]
+    if category == "Region":
+        sub = filter_reporting_rows(sub)
 
     for party in parties:
         s = sub[sub["party"] == party].sort_values("date")
@@ -207,7 +210,12 @@ def plot_latest_heatmap(
     differ hugely in overall level; the cell text is always the real %."""
     _apply_style()
     parties = parties or config.PARTY_ORDER
-    d = summary_df[~summary_df["category"].isin(exclude_categories) & summary_df["party"].isin(parties)].copy()
+    d = filter_reporting_rows(
+        summary_df[
+            ~summary_df["category"].isin(exclude_categories)
+            & summary_df["party"].isin(parties)
+        ]
+    )
     d["label"] = d["category"] + ": " + d["group"]
 
     pivot_pct = d.pivot_table(index="label", columns="party", values="latest") * 100
@@ -246,7 +254,12 @@ def _change_pivot(
             f"summary_df has no '{chg_col}' column -- build it with "
             f"analysis.build_summary(df, trailing_weeks=... including {trailing_weeks})."
         )
-    d = summary_df[~summary_df["category"].isin(exclude_categories) & summary_df["party"].isin(parties)].copy()
+    d = filter_reporting_rows(
+        summary_df[
+            ~summary_df["category"].isin(exclude_categories)
+            & summary_df["party"].isin(parties)
+        ]
+    )
     d["label"] = d["category"] + ": " + d["group"]
     pivot = d.pivot_table(index="label", columns="party", values=chg_col) * 100
     return pivot[[p for p in config.PARTY_ORDER if p in pivot.columns]]

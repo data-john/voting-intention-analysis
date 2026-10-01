@@ -677,6 +677,7 @@ def build_site() -> Path:
       <section class="method-note" aria-labelledby="method-title">
         <h2 id="method-title">Source and method</h2>
         <p>Data comes from YouGov's public UK voting-intention tracker. This report describes tracker responses and demographic breakdowns; it is not an election forecast or a seat projection. Support changes are percentage-point differences. The analysis avoids comparing across long gaps in the polling series.</p>
+        <p>Regional results for SNP are shown for Scotland only, and Plaid Cymru results for Wales only. Their other demographic breakdowns remain UK-wide.</p>
         <p><a href="https://api-test.yougov.com/public-data/v5/uk/trackers/voting-intention/download/">YouGov tracker download</a> · <a href="https://github.com/data-john/voting-intention-analysis">Analysis code and methodology</a></p>
       </section>
     </div>
