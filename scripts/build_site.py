@@ -170,7 +170,17 @@ def _latest_national(rows: list[dict[str, str]]) -> list[dict[str, str]]:
     if not national:
         raise ValueError("The summary table has no Overall / All adults rows.")
     order = {party: index for index, party in enumerate(config.PARTY_ORDER)}
-    national.sort(key=lambda row: order.get(row.get("party", ""), len(order)))
+
+    def support_order(row: dict[str, str]) -> tuple[float, int]:
+        try:
+            support = float(row.get("latest", ""))
+        except (TypeError, ValueError):
+            support = float("-inf")
+        if not math.isfinite(support):
+            support = float("-inf")
+        return (-support, order.get(row.get("party", ""), len(order)))
+
+    national.sort(key=support_order)
     return national
 
 
@@ -359,6 +369,13 @@ def _headline_cards(
 ) -> str:
     cards = []
     national_by_party = {row["party"]: row for row in national_rows}
+    national_order = {
+        row["party"]: index for index, row in enumerate(national_rows)
+    }
+    rows = sorted(
+        rows,
+        key=lambda row: national_order.get(row.get("party", ""), len(national_order)),
+    )
     for row in rows:
         party = row.get("party", "")
         label = config.PARTY_LABELS.get(party, party)
