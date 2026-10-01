@@ -14,17 +14,22 @@ Run this any time you add a new poll-tracker workbook to data/, or use
 from __future__ import annotations
 
 import argparse
+import json
+import os
 import sys
+import tempfile
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT / "src"))
+os.environ.setdefault("MPLCONFIGDIR", str(Path(tempfile.gettempdir()) / "electionmodels-mpl"))
 
 import matplotlib
 
 matplotlib.use("Agg")  # no display needed for a script
+import matplotlib.pyplot as plt
 
-from voting_intention import loader, analysis, plotting  # noqa: E402
+from voting_intention import loader, analysis, plotting, config  # noqa: E402
 
 CATEGORIES = ["Age", "Gender", "Region", "Social Grade", "EU Ref Vote", "Past Vote"]
 
@@ -57,23 +62,53 @@ def run(trailing_weeks: list[int] = (4, 12, 52)) -> None:
     )
     headline_demo.to_csv(table_dir / "headline_demographics_only.csv")
 
+    retention = analysis.vote_retention_table(summary, trailing_weeks=trailing_weeks)
+    retention.to_csv(table_dir / "vote_retention.csv")
+
     plotting.plot_overall_trend(df, save_path=str(fig_dir / "overall_trend.png"))
     plotting.plot_latest_heatmap(summary, save_path=str(fig_dir / "latest_heatmap.png"))
     plotting.plot_change_heatmap_grid(
         summary, trailing_weeks=trailing_weeks, save_path=str(fig_dir / "change_heatmap_grid.png")
     )
-    # Also save a single-window change heatmap for the middle window, for reports
-    # that just want one figure.
-    mid_window = trailing_weeks[len(trailing_weeks) // 2]
-    plotting.plot_change_heatmap(
-        summary, trailing_weeks=mid_window, save_path=str(fig_dir / f"change_heatmap_{mid_window}w.png")
-    )
+    # Save each window separately so the report can display one legible chart at a time.
+    for weeks in trailing_weeks:
+        fig = plotting.plot_change_heatmap(
+            summary, trailing_weeks=weeks,
+            save_path=str(fig_dir / f"change_heatmap_{weeks}w.png"),
+        )
+        plt.close(fig)
 
+    group_charts = []
     for category in CATEGORIES:
         fname = category.lower().replace(" ", "_")
-        plotting.plot_category_grid(df, category, save_path=str(fig_dir / f"grid_{fname}.png"))
+        # Remove stale group charts if the set of groups has changed.
+        for old_chart in fig_dir.glob(f"group_{fname}_*.png"):
+            old_chart.unlink()
+
+        grid = plotting.plot_category_grid(df, category, save_path=str(fig_dir / f"grid_{fname}.png"))
+        plt.close(grid)
+        groups = config.order_groups(
+            category, df.loc[df["category"] == category, "group"].unique()
+        )
+        for index, group in enumerate(groups, start=1):
+            filename = f"group_{fname}_{index:03d}.png"
+            chart = plotting.plot_category_group(
+                df, category, group, save_path=str(fig_dir / filename)
+            )
+            plt.close(chart)
+            group_charts.append({
+                "category": category,
+                "category_slug": fname,
+                "group": str(group),
+                "filename": filename,
+            })
+
         board = analysis.category_leaderboard(summary, category, trailing_weeks=trailing_weeks)
         board.to_csv(table_dir / f"leaderboard_{fname}.csv")
+
+    (fig_dir / "group_charts.json").write_text(
+        json.dumps(group_charts, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
 
     print(f"Done. Figures -> {fig_dir}, tables -> {table_dir}")
 
@@ -97,7 +132,8 @@ def main():
     if args.fetch:
         from voting_intention import downloader
 
-        downloader.download_latest(data_dir=str(REPO_ROOT / "data"))
+        if downloader.download_latest(data_dir=str(REPO_ROOT / "data")) is None:
+            raise SystemExit("Could not fetch the latest YouGov workbook; outputs were not refreshed.")
 
     run(trailing_weeks=args.weeks)
 

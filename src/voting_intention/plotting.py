@@ -163,6 +163,36 @@ def plot_category_grid(
     return fig
 
 
+def plot_category_group(
+    df: pd.DataFrame,
+    category: str,
+    group: str,
+    parties: list[str] | None = None,
+    smooth_weeks: int = 4,
+    figsize: tuple[float, float] = (8, 4.4),
+    save_path: str | None = None,
+):
+    """Plot a single group's trend as a standalone chart."""
+    _apply_style()
+    parties = parties or config.MAIN_PARTIES
+    fig, ax = plt.subplots(figsize=figsize)
+    plot_group_lines(
+        ax, df, category, group, parties=parties, smooth_weeks=smooth_weeks, legend=False
+    )
+    ax.set_title(group)
+    ax.set_ylabel("Support (%)")
+    handles, labels = ax.get_legend_handles_labels()
+    if handles:
+        ax.legend(
+            handles, labels, loc="upper center", bbox_to_anchor=(0.5, -0.19),
+            ncol=min(6, len(labels)), frameon=False, fontsize=8,
+        )
+    fig.tight_layout(rect=(0, 0.12, 1, 1))
+    if save_path:
+        fig.savefig(save_path, dpi=150, bbox_inches="tight")
+    return fig
+
+
 def plot_latest_heatmap(
     summary_df: pd.DataFrame,
     exclude_categories: tuple[str, ...] = ("Overall",),

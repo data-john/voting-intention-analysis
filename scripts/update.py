@@ -50,9 +50,10 @@ def main():
         archive=not args.no_archive,
     )
     if downloaded is None:
-        print("Skipping refresh: download failed. Check your internet connection and try again, "
-              "or run scripts/refresh_outputs.py directly if data/ is already up to date.")
-        return
+        raise SystemExit(
+            "Could not download the latest YouGov workbook. Outputs were not refreshed. "
+            "Check the connection or run scripts/refresh_outputs.py if local data is current."
+        )
 
     refresh_outputs.run(trailing_weeks=args.weeks)
 

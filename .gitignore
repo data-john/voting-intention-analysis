@@ -6,3 +6,8 @@ venv/
 .DS_Store
 /data/*.xlsx
 data/_archive/
+/site/
+# Standalone per-group and per-window report charts are generated on refresh.
+outputs/figures/group_*.png
+outputs/figures/group_charts.json
+outputs/figures/change_heatmap_*w.png
