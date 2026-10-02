@@ -43,6 +43,15 @@ def _pct_formatter(x, _pos=None):
     return f"{x:.0f}%"
 
 
+def _default_category_parties(category: str) -> list[str]:
+    """Return the standard chart parties, including nation-specific parties
+    where their regional series is reported."""
+    parties = list(config.MAIN_PARTIES)
+    if category == "Region" and "Plaid Cymru" not in parties:
+        parties.append("Plaid Cymru")
+    return parties
+
+
 def plot_group_lines(
     ax,
     df: pd.DataFrame,
@@ -131,7 +140,7 @@ def plot_category_grid(
     """Small-multiples figure: one subplot per group within `category`, each
     showing every party's trend line for that group."""
     _apply_style()
-    parties = parties or config.MAIN_PARTIES
+    parties = parties or _default_category_parties(category)
     groups = config.order_groups(category, df.loc[df["category"] == category, "group"].unique())
     n = len(groups)
     ncols = min(ncols, n) or 1
@@ -140,11 +149,12 @@ def plot_category_grid(
     fig, axes = plt.subplots(nrows, ncols, figsize=figsize or (4.6 * ncols, 3.0 * nrows), sharey=True)
     axes = np.atleast_1d(axes).ravel()
 
-    handles_labels = None
+    legend_handles = {}
     for ax, group in zip(axes, groups):
         plot_group_lines(ax, df, category, group, parties=parties, smooth_weeks=smooth_weeks)
-        if handles_labels is None:
-            handles_labels = ax.get_legend_handles_labels()
+        handles, labels = ax.get_legend_handles_labels()
+        for handle, label in zip(handles, labels):
+            legend_handles.setdefault(label, handle)
     for ax in axes[len(groups):]:
         ax.axis("off")
 
@@ -152,11 +162,12 @@ def plot_category_grid(
         f"Voting intention by {category}  (thin = weekly poll, bold = {smooth_weeks}-week average)",
         fontsize=13,
     )
-    if handles_labels and handles_labels[0]:
+    if legend_handles:
         fig.legend(
-            *handles_labels,
+            list(legend_handles.values()),
+            list(legend_handles.keys()),
             loc="lower center",
-            ncol=min(8, len(handles_labels[0])),
+            ncol=min(8, len(legend_handles)),
             frameon=False,
             bbox_to_anchor=(0.5, -0.02),
         )
@@ -177,7 +188,7 @@ def plot_category_group(
 ):
     """Plot a single group's trend as a standalone chart."""
     _apply_style()
-    parties = parties or config.MAIN_PARTIES
+    parties = parties or _default_category_parties(category)
     fig, ax = plt.subplots(figsize=figsize)
     plot_group_lines(
         ax, df, category, group, parties=parties, smooth_weeks=smooth_weeks, legend=False
