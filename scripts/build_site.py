@@ -128,7 +128,7 @@ def _pretty_header(value: str) -> str:
     return text[:1].upper() + text[1:]
 
 
-def _table(rows: list[dict[str, str]], caption: str, class_name: str = "data-table") -> str:
+def _table(rows: list[dict[str, str]], caption: str, class_name: str = "data-table", category: str = "") -> str:
     if not rows:
         return f'<p class="muted">No rows are available for { _escape(caption.lower()) }.</p>'
     fields = list(rows[0])
@@ -138,6 +138,8 @@ def _table(rows: list[dict[str, str]], caption: str, class_name: str = "data-tab
         cells = []
         for field in fields:
             value = row.get(field, "")
+            if category and value and (field in ("strongest", "weakest") or field.startswith(("most_gaining_", "most_losing_"))):
+                value = config.group_label(category, value)
             if field.endswith("_pp"):
                 cells.append(_change_cell(value))
             else:
@@ -343,7 +345,7 @@ def _change_cards(summary: list[dict[str, str]]) -> str:
                 )
             entries.append(
                 '<li class="change-entry">'
-                f'<p class="change-demographic">{_escape(category_labels[category])} · {_escape(group)}</p>'
+                f'<p class="change-demographic">{_escape(config.category_label(category, category_labels[category]))} · {_escape(config.group_label(category, group))}</p>'
                 '<div class="leading-move">'
                 f'<span class="change-rank">{index:02d}</span>'
                 f'<strong style="--party-color:{_escape(party_color)}">{_escape(party_label)}</strong>'
@@ -391,9 +393,9 @@ def _headline_cards(
             movements.append(
                 "<tr>"
                 f"<th scope=\"row\">{weeks} weeks</th>"
-                f"<td>{_escape(gain_group) or '—'}</td>"
+                f"<td>{_escape(config.breakdown_label(gain_group)) or '—'}</td>"
                 f"{_change_cell(gain_value)}"
-                f"<td>{_escape(loss_group) or '—'}</td>"
+                f"<td>{_escape(config.breakdown_label(loss_group)) or '—'}</td>"
                 f"{_change_cell(loss_value)}"
                 "</tr>"
             )
@@ -405,9 +407,9 @@ def _headline_cards(
             f'<p class="headline-latest"><span>Latest national support</span><strong>{_escape(latest_support)}</strong></p>'
             '</div>'
             '<div class="strength-grid">'
-            f'<p><span>Strongest demographic</span><strong>{_escape(row.get("strongest_group", "—"))}</strong>'
+            f'<p><span>Strongest demographic</span><strong>{_escape(config.breakdown_label(row.get("strongest_group", "—")))}</strong>'
             f'<em>{_escape(_percent(row.get("strongest_%")))}</em></p>'
-            f'<p><span>Weakest demographic</span><strong>{_escape(row.get("weakest_group", "—"))}</strong>'
+            f'<p><span>Weakest demographic</span><strong>{_escape(config.breakdown_label(row.get("weakest_group", "—")))}</strong>'
             f'<em>{_escape(_percent(row.get("weakest_%")))}</em></p>'
             "</div>"
             '<div class="table-scroll"><table class="movement-table">'
@@ -434,6 +436,8 @@ def _downloads(csv_files: list[Path]) -> str:
 def _category_sections(group_charts: list[dict[str, str]]) -> str:
     sections = []
     for slug, title in CATEGORIES:
+        category = next(name for name in config.CATEGORY_EMOJIS if name.lower().replace(" ", "_") == slug)
+        display_title = config.category_label(category, title)
         leaderboard = _read_csv(TABLES_DIR / f"leaderboard_{slug}.csv")
         charts = [chart for chart in group_charts if chart.get("category_slug") == slug]
         chart_cards = []
@@ -441,7 +445,7 @@ def _category_sections(group_charts: list[dict[str, str]]) -> str:
             group = chart["group"]
             chart_image = _image(
                 chart["filename"],
-                group,
+                config.group_label(category, group),
                 f"Voting intention trends for {title.lower()} group {group}",
                 "Thin lines show weekly readings; bold lines show a four-poll average.",
             )
@@ -453,7 +457,7 @@ def _category_sections(group_charts: list[dict[str, str]]) -> str:
         filter_id = f"group-filter-{slug}"
         sections.append(
             f'<details class="category-panel" id="{_escape(slug)}">'
-            f"<summary>{_escape(title)} <span>{len(charts)} group charts and leaderboard</span></summary>"
+            f"<summary>{_escape(display_title)} <span>{len(charts)} group charts and leaderboard</span></summary>"
             '<div class="category-content">'
             '<div class="group-filter">'
             f'<label for="{_escape(filter_id)}">Find a group</label>'
@@ -462,7 +466,7 @@ def _category_sections(group_charts: list[dict[str, str]]) -> str:
             '</div>'
             f'<div class="group-chart-grid">{"".join(chart_cards)}</div>'
             '<p class="filter-empty" data-filter-empty hidden>No groups match that search.</p>'
-            f'{_table(leaderboard, f"{title} leaderboard")}'
+            f'{_table(leaderboard, f"{display_title} leaderboard", category=category)}'
             "</div></details>"
         )
     return "".join(sections)

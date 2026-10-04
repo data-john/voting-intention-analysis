@@ -115,6 +115,52 @@ GROUP_ORDER = {
 }
 
 
+# Presentation only: keep workbook labels and CSV identifiers unchanged.
+CATEGORY_EMOJIS = {
+    "Age": "🎂", "Gender": "👥", "Region": "🗺️",
+    "Social Grade": "💼", "EU Ref Vote": "🇪🇺", "Past Vote": "🗳️",
+}
+GROUP_EMOJIS = {
+    "Age": {"18-24": "🧑", "25-49": "🧑‍💼", "50-64": "🧑‍🦳", "65+": "🧓"},
+    "Gender": {"Male": "👨", "Female": "👩"},
+    "Region": {
+        "London": "🏙️", "Rest of South": "🌊", "Rest of the South": "🌊",
+        "South": "🌊", "Midlands": "🏭", "Midlands & Wales": "🏭",
+        "North": "⛰️", "Scotland": "🏴\U000e0067\U000e0062\U000e0073\U000e0063\U000e0074\U000e007f",
+        "Wales": "🏴\U000e0067\U000e0062\U000e0077\U000e006c\U000e0073\U000e007f",
+    },
+    "Social Grade": {"ABC1": "💼", "C2DE": "🛠️"},
+    "EU Ref Vote": {"Remain": "🇪🇺", "Leave": "🚪"},
+    "Past Vote": {
+        "Conservative": "🌳", "Labour": "🌹", "Liberal Democrat": "🕊️",
+        "Lib Dem": "🕊️", "Reform UK": "➡️", "Brexit Party": "➡️",
+        "UKIP": "💷", "Green": "🌿", "SNP": "🏴\U000e0067\U000e0062\U000e0073\U000e0063\U000e0074\U000e007f",
+        "Scottish National Party": "🏴\U000e0067\U000e0062\U000e0073\U000e0063\U000e0074\U000e007f",
+        "Plaid Cymru": "🌼", "Change UK": "🔄", "Did not vote": "🚫",
+        "Don't know": "❓", "Too young to vote": "🧒",
+    },
+}
+
+
+def category_label(category: str, title: str | None = None) -> str:
+    emoji = CATEGORY_EMOJIS.get(category, "")
+    return f"{title or category} {emoji}".rstrip()
+
+
+def group_label(category: str, group: str) -> str:
+    emojis = GROUP_EMOJIS.get(category, {})
+    emoji = next((value for name, value in emojis.items() if name.casefold() == group.casefold()),
+                 CATEGORY_EMOJIS.get(category, ""))
+    return f"{group} {emoji}".rstrip()
+
+
+def breakdown_label(label: str) -> str:
+    category, separator, group = label.partition(": ")
+    if not separator:
+        return label
+    return f"{category_label(category)}: {group_label(category, group)}"
+
+
 def classify_sheet(sheet_name: str) -> tuple[str, str]:
     """Map a worksheet name to (breakdown_category, group_label).
 
