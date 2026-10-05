@@ -5,6 +5,9 @@ venv/
 .ipynb_checkpoints/
 .DS_Store
 /data/*.xlsx
+/data/*.check.json
+/outputs/source_check.json
+/outputs/watchdog_state.json
 data/_archive/
 /site/
 # Standalone per-group and per-window report charts are generated on refresh.

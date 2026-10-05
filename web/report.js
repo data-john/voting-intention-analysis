@@ -1,5 +1,23 @@
 "use strict";
 
+// This warning still works when the publishing workflow never starts.
+const updateSourceFreshness = () => {
+  const timestamp = document.querySelector("[data-source-check]");
+  const status = document.querySelector("[data-source-status]");
+  if (!timestamp || !status) return;
+  const now = new Date();
+  const monday = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/London", weekday: "short",
+  }).format(now) === "Mon";
+  const overdue = now - new Date(timestamp.dateTime) > (monday ? 2 : 7) * 3600000;
+  status.classList.toggle("is-overdue", overdue);
+  status.textContent = overdue
+    ? "The next YouGov check is overdue. These figures reflect the last successful source check shown above."
+    : "The YouGov workbook was checked successfully. The latest available poll is shown above.";
+};
+updateSourceFreshness();
+setInterval(updateSourceFreshness, 60000);
+
 document.querySelectorAll("[data-category-action]").forEach((button) => {
   button.addEventListener("click", () => {
     const open = button.dataset.categoryAction === "open";

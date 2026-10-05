@@ -93,12 +93,61 @@ and CSV downloads alongside each copy. That makes the report available at
 `site/` directory is ignored by Git. Open it locally with
 `python -m http.server --directory site` if you want to preview it.
 
-`.github/workflows/publish-report.yml` checks YouGov each morning at 08:17 UK time,
-also runs when changes are pushed to `main`, and supports a manual run from the GitHub
-Actions tab. It fetches the workbook in the temporary runner, runs `scripts/update.py`,
-builds the report, and deploys the static artifact to GitHub Pages. The workbook and
-archive are not committed or included in the site. A failed download or build stops the
-workflow before deployment, leaving the last successful report in place.
+`.github/workflows/publish-report.yml` schedules checks at 02:17, 08:17, 14:17 and
+20:17 UK time daily, plus hourly checks from 09:17 to 21:17 on Mondays. It also runs
+on pushes to `main` and supports manual dispatch. GitHub scheduled runs can be delayed
+or dropped, so this schedule alone is not a guarantee that a check occurred.
+
+Each successful download validates national data and records its real check time,
+latest poll date and SHA-256 in an ignored `data/*.check.json` receipt, including when
+the workbook is unchanged. The pipeline refreshes all charts/tables and publishes
+that receipt at `/status.json` and `/yougov/status.json`. "YouGov last checked" comes
+from the receipt, never the page build time. A local rebuild preserves the original
+check time; without a receipt it says the source check was not recorded. Production
+builds require a receipt. Download failures, incomplete national polls and date
+regressions stop publication. The source workbook and archive are never published.
+
+After deployment, `scripts/verify_publication.py` checks both public report paths,
+matching the source receipt, run ID, commit and HTML dates to the generated artifact.
+It retries briefly for propagation; a deployment that serves an older report fails
+verification rather than reporting success. Each run records source-check evidence
+in its GitHub Actions summary. Standard GitHub failure notifications depend on your
+GitHub notification settings.
+
+### Independent fallback and monitoring
+
+`scripts/watchdog.py` downloads YouGov independently and compares it with the public
+report receipt. With `--repair` it dispatches the publishing workflow if a newer poll
+is missing or the published source check is more than two hours old on Mondays or
+seven hours old otherwise. It avoids duplicate dispatches while a run is active,
+detects stuck runs, and reports failures through a local desktop notification,
+`outputs/watchdog_state.json`, and the systemd journal. An older source date raises
+an error rather than triggering a rollback.
+
+Install the independent half-hourly user timer with the existing authenticated `gh`
+CLI and this repository's `.venv`:
+
+```bash
+.venv/bin/python scripts/install_watchdog.py
+systemctl --user start yougov-report-watchdog.service
+```
+
+The timer runs at minutes 13 and 43 and catches up after startup. It does not need
+Codex open. It **does need this computer awake, network access, an active user systemd
+session, the retained checkout/.venv and a valid `gh` login**. It is a supplemental
+fallback, not an always-on hosted scheduler. Guaranteed coverage while this computer
+is off would require running the watchdog on an independent always-on host.
+
+Inspect it with `systemctl --user list-timers yougov-report-watchdog.timer` and
+`journalctl --user -u yougov-report-watchdog.service`. Disable it with
+`systemctl --user disable --now yougov-report-watchdog.timer`.
+
+The public page also calculates check age in the visitor's browser and displays an
+overdue warning even if no workflow starts. This distinguishes an overdue check from
+a successful check that found no newer poll. It does not assume a new poll must exist
+every Monday.
+
+Run regression checks with `.venv/bin/python -m unittest discover -s tests -v`.
 
 ### One-time GitHub Pages and domain setup
 

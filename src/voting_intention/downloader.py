@@ -24,6 +24,8 @@ from pathlib import Path
 
 import requests
 
+from . import freshness
+
 # The public download link for YouGov's UK voting-intention tracker.
 YOUGOV_VOTING_INTENTION_URL = (
     "https://api-test.yougov.com/public-data/v5/uk/trackers/voting-intention/download/"
@@ -100,14 +102,18 @@ def download_latest(
         return None
 
     content_hash = _hash_bytes(content)
-    if target.exists():
-        if _hash_bytes(target.read_bytes()) == content_hash:
-            print(f"{target} is already up to date -- no new poll since your last download.")
-            return target
-
     temporary = target.with_name(f".{target.name}.download")
     try:
         temporary.write_bytes(content)
+        receipt = freshness.workbook_receipt(temporary, url)
+        if target.exists():
+            previous = freshness.workbook_receipt(target, url)
+            if receipt["latest_poll_date"] < previous["latest_poll_date"]:
+                raise ValueError("Downloaded poll date is older than the existing workbook.")
+            if _hash_bytes(target.read_bytes()) == content_hash:
+                freshness.write_json(target.with_suffix(".check.json"), receipt)
+                print(f"Source checked successfully; latest poll {receipt['latest_poll_date']}. Workbook unchanged.")
+                return target
         if target.exists() and archive:
             archive_dir = data_path / "_archive"
             archive_dir.mkdir(exist_ok=True)
@@ -116,6 +122,7 @@ def download_latest(
             print(f"Archived previous version to {backup_path}")
 
         temporary.replace(target)
+        freshness.write_json(target.with_suffix(".check.json"), receipt)
     finally:
         temporary.unlink(missing_ok=True)
 
