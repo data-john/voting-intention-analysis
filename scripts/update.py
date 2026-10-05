@@ -12,6 +12,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
@@ -21,6 +22,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from voting_intention import downloader  # noqa: E402
 import refresh_outputs  # noqa: E402
+import requests  # noqa: E402
 
 
 def main():
@@ -41,7 +43,15 @@ def main():
         "--no-archive", action="store_true",
         help="Don't keep a backup copy of the previous version in data/_archive/.",
     )
+    parser.add_argument("--published-status-url", help="Reject source dates older than this published status.json.")
     args = parser.parse_args()
+
+    published = None
+    if args.published_status_url:
+        response = requests.get(args.published_status_url, timeout=30, headers={"Cache-Control": "no-cache"})
+        if response.status_code != 404:  # Allow the first deployment of status.json.
+            response.raise_for_status()
+            published = response.json()
 
     downloaded = downloader.download_latest(
         data_dir=str(REPO_ROOT / "data"),
@@ -55,7 +65,10 @@ def main():
             "Check the connection or run scripts/refresh_outputs.py if local data is current."
         )
 
-    refresh_outputs.run(trailing_weeks=args.weeks)
+    receipt = json.loads(downloaded.with_suffix(".check.json").read_text(encoding="utf-8"))
+    if published and receipt["latest_poll_date"] < published["latest_poll_date"]:
+        raise SystemExit("YouGov returned an older poll than the live report; refusing to publish a regression.")
+    refresh_outputs.run(trailing_weeks=args.weeks, source_workbook=downloaded)
 
 
 if __name__ == "__main__":

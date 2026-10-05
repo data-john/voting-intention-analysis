@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import csv
+import argparse
 import html
 import json
 import math
@@ -19,7 +20,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 os.environ.setdefault("MPLCONFIGDIR", str(Path(tempfile.gettempdir()) / "electionmodels-mpl"))
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
-from voting_intention import config  # noqa: E402
+from voting_intention import config, freshness  # noqa: E402
 
 FIGURES_DIR = REPO_ROOT / "outputs" / "figures"
 TABLES_DIR = REPO_ROOT / "outputs" / "tables"
@@ -541,15 +542,28 @@ def _validate_inputs() -> tuple[list[dict[str, str]], list[Path], list[Path], li
     return summary, figure_files, csv_files, group_charts
 
 
-def build_site() -> Path:
+def build_site(require_source_check: bool = False) -> Path:
     summary, figure_files, csv_files, group_charts = _validate_inputs()
     national = _latest_national(summary)
     latest_date = max(row["latest_date"] for row in national)
     national_rows = [row for row in national if row.get("latest_date") == latest_date]
     headlines = _read_csv(TABLES_DIR / "headline_demographics_only.csv")
     retention = _read_csv(TABLES_DIR / "vote_retention.csv")
-    checked = datetime.now(ZoneInfo("Europe/London"))
-    checked_label = f"{checked.day} {checked.strftime('%B %Y at %H:%M %Z')}"
+    receipt_path = REPO_ROOT / "outputs" / "source_check.json"
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8")) if receipt_path.exists() else None
+    if require_source_check and not receipt:
+        raise ValueError("A verified source check is required before publishing; run scripts/update.py.")
+    if receipt and receipt["latest_poll_date"] != latest_date:
+        raise ValueError("Report tables do not match the verified source poll date.")
+    checked = datetime.fromisoformat(receipt["checked_at"]).astimezone(ZoneInfo("Europe/London")) if receipt else None
+    if checked and (checked.tzinfo is None or checked > datetime.now(ZoneInfo("Europe/London"))):
+        raise ValueError("Invalid source check timestamp.")
+    checked_label = f"{checked.day} {checked.strftime('%B %Y at %H:%M %Z')}" if checked else "Source check not recorded"
+    checked_html = f'<time data-source-check datetime="{_escape(checked.isoformat(timespec="seconds"))}">{_escape(checked_label)}</time>' if checked else _escape(checked_label)
+    status = dict(receipt or {}, latest_poll_date=latest_date,
+                  built_at=datetime.now(ZoneInfo("Europe/London")).isoformat(timespec="seconds"),
+                  run_id=os.environ.get("GITHUB_RUN_ID"),
+                  commit_sha=os.environ.get("GITHUB_SHA"))
 
     if SITE_DIR.exists():
         shutil.rmtree(SITE_DIR)
@@ -610,8 +624,9 @@ def build_site() -> Path:
         <p class="hero-copy">A clear view of national voting intention and how party support varies across the UK electorate.</p>
         <div class="update-meta">
           <p><span>Poll data through</span><strong><time datetime="{_escape(latest_date)}">{_escape(_format_date(latest_date))}</time></strong></p>
-          <p><span>Last checked</span><strong><time datetime="{_escape(checked.isoformat(timespec='minutes'))}">{_escape(checked_label)}</time></strong></p>
+          <p><span>YouGov last checked</span><strong>{checked_html}</strong></p>
         </div>
+        <p class="source-status" data-source-status aria-live="polite">{'The YouGov workbook was checked successfully. The latest available poll is shown above.' if receipt else 'These figures were rebuilt from local data; a YouGov source check has not been recorded.'}</p>
       </div>
     </section>
 
@@ -730,11 +745,13 @@ def build_site() -> Path:
 </html>
     """
     (SITE_DIR / "index.html").write_text(report, encoding="utf-8")
+    freshness.write_json(SITE_DIR / "status.json", status)
     yougov_dir = SITE_DIR / "yougov"
     yougov_dir.mkdir()
     shutil.copytree(SITE_DIR / "assets", yougov_dir / "assets")
     shutil.copytree(SITE_DIR / "downloads", yougov_dir / "downloads")
     shutil.copy2(SITE_DIR / "index.html", yougov_dir / "index.html")
+    shutil.copy2(SITE_DIR / "status.json", yougov_dir / "status.json")
 
     print(f"Built static report at {SITE_DIR} and {yougov_dir}")
     print(f"Poll data through {_format_date(latest_date)}; checked {checked_label}.")
@@ -751,7 +768,10 @@ def _format_date(value: str) -> str:
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--require-source-check", action="store_true")
+    args = parser.parse_args()
     try:
-        build_site()
+        build_site(require_source_check=args.require_source_check)
     except (FileNotFoundError, ValueError, KeyError) as exc:
         raise SystemExit(str(exc)) from exc

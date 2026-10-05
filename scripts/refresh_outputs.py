@@ -29,12 +29,12 @@ import matplotlib
 matplotlib.use("Agg")  # no display needed for a script
 import matplotlib.pyplot as plt
 
-from voting_intention import loader, analysis, plotting, config  # noqa: E402
+from voting_intention import loader, analysis, plotting, config, freshness  # noqa: E402
 
 CATEGORIES = ["Age", "Gender", "Region", "Social Grade", "EU Ref Vote", "Past Vote"]
 
 
-def run(trailing_weeks: list[int] = (4, 12, 52)) -> None:
+def run(trailing_weeks: list[int] = (4, 12, 52), source_workbook: Path | None = None) -> None:
     """Reload every workbook in data/ and regenerate all figures/tables."""
     trailing_weeks = list(trailing_weeks)
 
@@ -50,6 +50,14 @@ def run(trailing_weeks: list[int] = (4, 12, 52)) -> None:
           f"{df['group'].nunique()} groups | {df['party'].nunique()} parties")
     print(loader.coverage_report(df))
     print(f"Trailing windows: {trailing_weeks} weeks")
+
+    # A local rebuild must preserve the actual source-check time, or show it as unknown.
+    receipt = freshness.matching_receipt(source_workbook or data_dir / "voting-intention.xlsx")
+    latest_date = df.loc[df["category"] == "Overall", "date"].max().date().isoformat()
+    if receipt and receipt["latest_poll_date"] != latest_date:
+        raise ValueError("Source receipt does not match the latest national data being analysed.")
+    status_path = REPO_ROOT / "outputs" / "source_check.json"
+    status_path.unlink(missing_ok=True)
 
     summary = analysis.filter_reporting_rows(
         analysis.build_summary(df, trailing_weeks=trailing_weeks)
@@ -111,6 +119,9 @@ def run(trailing_weeks: list[int] = (4, 12, 52)) -> None:
     (fig_dir / "group_charts.json").write_text(
         json.dumps(group_charts, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
+
+    if receipt:
+        freshness.write_json(status_path, receipt)
 
     print(f"Done. Figures -> {fig_dir}, tables -> {table_dir}")
 
