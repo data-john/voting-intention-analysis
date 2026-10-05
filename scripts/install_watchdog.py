@@ -23,7 +23,7 @@ Description=Check YouGov report freshness and repair missed GitHub checks
 [Service]
 Type=oneshot
 Environment=MPLCONFIGDIR=/tmp/electionmodels-watchdog-mpl
-WorkingDirectory="{ROOT}"
+WorkingDirectory={ROOT}
 ExecStart="{PYTHON}" "{ROOT / 'scripts' / 'watchdog.py'}" --repair
 TimeoutStartSec=300
 '''
@@ -43,8 +43,11 @@ WantedBy=timers.target
     UNITS.mkdir(parents=True, exist_ok=True)
     (UNITS / f"{NAME}.service").write_text(service)
     (UNITS / f"{NAME}.timer").write_text(timer)
+    subprocess.run(["systemd-analyze", "--user", "verify",
+                    str(UNITS / f"{NAME}.service"), str(UNITS / f"{NAME}.timer")], check=True)
     subprocess.run(["systemctl", "--user", "daemon-reload"], check=True)
     subprocess.run(["systemctl", "--user", "enable", "--now", f"{NAME}.timer"], check=True)
+    subprocess.run(["systemctl", "--user", "is-active", "--quiet", f"{NAME}.timer"], check=True)
     subprocess.run(["systemctl", "--user", "list-timers", f"{NAME}.timer"], check=True)
 
 
