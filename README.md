@@ -110,7 +110,9 @@ regressions stop publication. The source workbook and archive are never publishe
 After deployment, `scripts/verify_publication.py` checks both public report paths,
 matching the source receipt, run ID, commit and HTML dates to the generated artifact.
 It retries briefly for propagation; a deployment that serves an older report fails
-verification rather than reporting success. Each run records source-check evidence
+verification rather than reporting success. Each workflow attempt uses a distinct
+artifact name so retrying a failed job cannot create ambiguous deployment artifacts.
+Each run records source-check evidence
 in its GitHub Actions summary. Standard GitHub failure notifications depend on your
 GitHub notification settings.
 
